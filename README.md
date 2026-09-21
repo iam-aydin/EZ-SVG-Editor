@@ -1,4 +1,5 @@
 # EZ SVG Editor
+![EZ SVG Editor](/screenshot.png)
 
 An ultra-lightweight, single-file vector graphic and style workbench built entirely in standalone HTML, CSS, and vanilla JavaScript. No node modules, build tools, or external dependencies required.
 
