@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EZ SVG | Vector & Style Workbench</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #0b0f17; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; user-select: none; }
+  
+  .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+  /* Top Navigation */
+  .header-bar { height: 50px; background: #111827; border-bottom: 1px solid #1f2937; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; z-index: 10; }
+  .logo-title { font-weight: 800; font-size: 15px; color: #38bdf8; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: opacity 0.15s ease; }
+  .logo-title:hover { opacity: 0.85; }
+  .logo-title span { color: #94a3b8; font-weight: 400; font-size: 12px; }
+  .top-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* Buttons */
+  button.btn { background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s ease; }
+  button.btn:hover:not(:disabled) { background: #334155; border-color: #475569; }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.btn.primary { background: #0284c7; border-color: #38bdf8; color: #fff; }
+  button.btn.primary:hover:not(:disabled) { background: #0369a1; }
+  button.btn.danger { background: #991b1b; border-color: #f87171; color: #fff; }
+  button.btn.danger:hover:not(:disabled) { background: #7f1d1d; }
+
+  /* Main Workspace Layout */
+  .workspace { flex: 1; display: flex; position: relative; overflow: hidden; }
+
+  /* Canvas Viewport */
+  .canvas-viewport { flex: 1; height: 100%; background-color: #090d16; background-image: radial-gradient(#1f2937 1px, transparent 1px); background-size: 20px 20px; position: relative; overflow: hidden; cursor: grab; }
+  .canvas-viewport.panning { cursor: grabbing; }
+  .canvas-viewport.locked { cursor: default; }
+
+  #infinite-svg-stage { width: 100%; height: 100%; position: absolute; top: 0; left: 0; overflow: visible; }
+
+  /* Canvas Controls Banner */
+  .viewport-overlay { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid #1f2937; padding: 6px 12px; border-radius: 20px; font-size: 11px; color: #94a3b8; z-index: 5; pointer-events: auto; }
+  .viewport-overlay span { color: #38bdf8; font-weight: 600; }
+  .lock-btn { padding: 2px 8px; font-size: 10px; border-radius: 12px; border: 1px solid #334155; background: #1e293b; color: #f8fafc; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.15s ease; }
+  .lock-btn.locked { background: #991b1b; border-color: #f87171; color: #ffffff; }
+
+  /* Sidebar Controls */
+  .sidebar { width: 360px; background: #0f172a; border-left: 1px solid #1f2937; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; }
+  .sidebar-tabs { display: flex; border-bottom: 1px solid #1f2937; background: #111827; }
+  .tab-btn { flex: 1; padding: 12px 6px; background: none; border: none; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; text-align: center; }
+  .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; background: #0f172a; }
+
+  .sidebar-content { flex: 1; overflow-y: auto; padding: 16px; display: none; }
+  .sidebar-content.active { display: block; }
+
+  /* Panels */
+  .panel-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .panel-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #38bdf8; margin: 0 0 6px 0; }
+  .panel-subtitle { font-size: 11px; color: #94a3b8; margin: 0 0 12px 0; line-height: 1.4; }
+  
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+  .ctrl-row label { flex: 1; color: #94a3b8; }
+  .ctrl-row input[type="number"], .ctrl-row input[type="text"], .ctrl-row select { background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #f8fafc; padding: 5px 8px; font-size: 12px; width: 80px; }
+  .ctrl-row input[type="range"] { flex: 1.5; accent-color: #0284c7; }
+  .ctrl-row input[type="color"] { border: none; width: 28px; height: 28px; border-radius: 4px; background: none; cursor: pointer; }
+
+  /* Layer Depth Order List */
+  .layer-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .layer-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s ease; }
+  .layer-item:hover { border-color: #475569; background: #162032; }
+  .layer-item.selected { background: #1e3a8a; border-color: #38bdf8; color: #ffffff; }
+  .layer-item.dragging { opacity: 0.4; border-style: dashed; }
+  .layer-drag-handle { color: #64748b; cursor: grab; font-size: 14px; font-weight: bold; }
+  .layer-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .layer-remove-btn { background: none; border: none; color: #64748b; cursor: pointer; padding: 2px 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease; }
+  .layer-remove-btn:hover { color: #f87171; background: rgba(239, 68, 68, 0.15); }
+
+  .layer-depth-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+  /* Modals */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.15s ease-out; }
+  .modal-backdrop.closing { animation: fadeOut 0.15s ease-in forwards; pointer-events: none; }
+  .modal-box { background: #0f172a; border: 1px solid #334155; border-radius: 12px; width: 480px; max-width: 90vw; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+  .modal-title { font-size: 15px; font-weight: 700; color: #38bdf8; margin-top: 0; margin-bottom: 12px; }
+  textarea.code-area { width: 100%; height: 200px; background: #090d16; color: #4ade80; font-family: monospace; font-size: 11px; border: 1px solid #334155; border-radius: 6px; padding: 10px; resize: vertical; box-sizing: border-box; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+  @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.97); } }
+
+  /* SVG Overlays */
+  .svg-element-target { cursor: pointer; }
+  .selection-bbox { fill: none; stroke: #38bdf8; stroke-width: 1.5; stroke-dasharray: 4 4; pointer-events: none; }
+  .rotation-handle-line { stroke: #38bdf8; stroke-width: 1.5; pointer-events: none; }
+  .rotation-handle-node { fill: #0284c7; stroke: #ffffff; stroke-width: 2; cursor: grab; }
+  .rotation-handle-node:active { cursor: grabbing; }
+  
+  #hidden-file-input { display: none; }
+</style>
+</head>
+<body>
+
+<input type="file" id="hidden-file-input" accept=".svg" onchange="handleFileSelect(event)">
+
+<div class="app-layout">
+  <!-- Header Navbar -->
+  <div class="header-bar">
+    <div class="logo-title" onclick="openAboutModal()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+      EZ SVG <span>| Vector & Style Workbench</span>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="btn-undo" onclick="undo()" disabled title="Undo (Ctrl+Z)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+        Undo
+      </button>
+      <button class="btn" id="btn-redo" onclick="redo()" disabled title="Redo (Ctrl+Shift+Z)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
+        Redo
+      </button>
+      <span style="color:#334155; margin:0 4px;">|</span>
+      <button class="btn" onclick="triggerFileInput()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Import File
+      </button>
+      <button class="btn" onclick="openPasteModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+        Paste Clipboard
+      </button>
+      <button class="btn primary" onclick="confirmResetToBlueCube()">Reset to Blue Cube</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <!-- Viewport Stage -->
+    <div class="canvas-viewport" id="viewport">
+      <div class="viewport-overlay">
+        Zoom: <span id="zoom-label">100%</span>
+        <span style="color:#475569">|</span> <span style="color:#94a3b8">Shift + Wheel</span> to Zoom
+        <span style="color:#475569">|</span> <span style="color:#94a3b8">Shift + Click</span> Multi-Select
+        <span style="color:#475569">|</span>
+        <button class="lock-btn" id="lock-btn" onclick="toggleViewLock()">
+          <svg id="lock-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+          <span id="lock-label">Lock View</span>
+        </button>
+      </div>
+
+      <svg id="infinite-svg-stage" xmlns="http://www.w3.org/2000/svg">
+        <defs id="svg-defs"></defs>
+        <g id="viewport-transform-group">
+          <!-- Main user SVG graphic root -->
+          <g id="main-content-root"></g>
+          <!-- Bounding box & transform handles -->
+          <g id="selection-overlay-root"></g>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Right Sidebar Controls -->
+    <div class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" onclick="switchTab('color-tab')">Color & Style</button>
+        <button class="tab-btn" onclick="switchTab('layers-tab')">Layers</button>
+        <button class="tab-btn" onclick="switchTab('transform-tab')">Transform</button>
+        <button class="tab-btn" onclick="switchTab('gradients-tab')">Gradients</button>
+        <button class="tab-btn" onclick="switchTab('export-tab')">Export</button>
+      </div>
+
+      <!-- Tab 1: Fill & Stroke Controls -->
+      <div id="color-tab" class="sidebar-content active">
+        <div class="panel-box">
+          <div class="panel-title">Selected Element Styling</div>
+          <div id="style-no-selection" style="font-size:12px; color:#94a3b8;">Click element to customize styles.</div>
+          <div id="style-controls" style="display:none;">
+            <div class="ctrl-row">
+              <label>Fill Mode</label>
+              <select id="ctrl-fill-type" onchange="applyFillTypeChange()">
+                <option value="color">Solid Color</option>
+                <option value="gradient">Gradient</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div class="ctrl-row" id="row-solid-fill">
+              <label>Fill Color</label>
+              <input type="color" id="ctrl-fill-color" oninput="applySolidColor()">
+              <input type="text" id="ctrl-fill-hex" style="width:70px;" oninput="syncFillHex(this.value)">
+            </div>
+            <div class="ctrl-row" id="row-grad-fill" style="display:none;">
+              <label>Select Gradient</label>
+              <select id="ctrl-fill-gradient" style="width:140px;" onchange="applyGradientFill()"></select>
+            </div>
+            <div class="ctrl-row">
+              <label>Fill Opacity</label>
+              <input type="range" id="ctrl-fill-opacity" min="0" max="1" step="0.05" oninput="applyOpacity()">
+            </div>
+            <hr style="border-color:#334155; margin:10px 0;">
+            <div class="ctrl-row">
+              <label>Stroke Color</label>
+              <input type="color" id="ctrl-stroke-color" oninput="applyStrokeStyle()">
+            </div>
+            <div class="ctrl-row">
+              <label>Stroke Width (px)</label>
+              <input type="number" id="ctrl-stroke-width" min="0" max="50" step="0.5" oninput="applyStrokeStyle()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Drag & Drop Layer Ordering -->
+      <div id="layers-tab" class="sidebar-content">
+        <div class="panel-box">
+          <div class="panel-title">Layer Depth Order</div>
+          <div class="panel-subtitle">Drag items up/down to reorder depth (Top = In Front, Bottom = Behind). Press Del key to remove selection.</div>
+          <div class="layer-list" id="layer-list-container"></div>
+          <div class="layer-depth-grid">
+            <button class="btn" onclick="moveSelectedLayers('forward')">Bring Forward</button>
+            <button class="btn" onclick="moveSelectedLayers('backward')">Send Backward</button>
+            <button class="btn" onclick="moveSelectedLayers('front')">Bring to Front</button>
+            <button class="btn" onclick="moveSelectedLayers('back')">Send to Back</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Transforms -->
+      <div id="transform-tab" class="sidebar-content">
+        <div class="panel-box">
+          <div class="panel-title">Position & Rotation</div>
+          <div id="transform-controls">
+            <div class="ctrl-row">
+              <label>Translate X (px)</label>
+              <input type="number" id="ctrl-tx" oninput="applyTransformInputs()">
+            </div>
+            <div class="ctrl-row">
+              <label>Translate Y (px)</label>
+              <input type="number" id="ctrl-ty" oninput="applyTransformInputs()">
+            </div>
+            <div class="ctrl-row">
+              <label>Rotation (°)</label>
+              <input type="range" id="ctrl-rot" min="-180" max="180" value="0" oninput="applyTransformInputs()">
+              <span id="rot-val" style="font-size:11px; color:#38bdf8; width:30px;">0°</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Gradient Defs Editor -->
+      <div id="gradients-tab" class="sidebar-content">
+        <div class="panel-box">
+          <div class="panel-title">Gradient Defs Editor</div>
+          <div class="ctrl-row">
+            <select id="grad-def-selector" style="width:100%;" onchange="loadGradDefEditor()"></select>
+          </div>
+          <div id="grad-editor-details" style="margin-top:10px;">
+            <div id="stops-editor-container"></div>
+            <button class="btn" style="margin-top:8px; width:100%;" onclick="addGradStop()">+ Add Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Export -->
+      <div id="export-tab" class="sidebar-content">
+        <div class="panel-box">
+          <div class="panel-title">Export Options</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn primary" style="width:100%; justify-content:center; padding:10px;" onclick="downloadSVGFile()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export .SVG File
+            </button>
+            <button class="btn" style="width:100%; justify-content:center; padding:10px;" onclick="copySVGCodeToClipboard()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy SVG Code
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Dialogs -->
+<div class="modal-backdrop" id="import-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-heading">Import SVG Markup</div>
+    <textarea id="import-textarea" class="code-area" placeholder="Paste your <svg>...</svg> code here"></textarea>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button class="btn" onclick="closeModal('import-modal')">Cancel</button>
+      <button class="btn primary" onclick="processImportModal()">Import Graphic</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="reset-confirm-modal">
+  <div class="modal-box" style="width:380px;">
+    <div class="modal-title" style="color:#f87171;">Confirm Reset</div>
+    <p style="font-size:13px; color:#cbd5e1; line-height:1.5; margin:0 0 16px 0;">it is gonna erase your whole thing are you sure</p>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn" onclick="closeModal('reset-confirm-modal')">Cancel</button>
+      <button class="btn danger" onclick="executeResetToBlueCube()">Reset Workspace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for About EZ SVG -->
+<div class="modal-backdrop" id="about-modal" onclick="if(event.target===this) closeAboutModal()">
+  <div class="modal-box" style="text-align: center; max-width: 420px; background: #0f172a; border: 1px solid #334155; padding: 24px;">
+    <!-- Blue box with opacity 0.9 -->
+    <div style="background: rgba(2, 132, 199, 0.9); border-radius: 12px; padding: 24px 20px; color: #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 20px;">
+      <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 800; letter-spacing: 0.5px;">EZ SVG Editor</h2>
+      <div style="font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.25); display: inline-block; padding: 4px 14px; border-radius: 12px;">0.8.2</div>
+    </div>
+    
+    <div style="margin-bottom: 22px;">
+      <a href="https://github.com/iam-aydin/EZ-SVG-Editor" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; background: #1e293b; border: 1px solid #38bdf8; border-radius: 8px; transition: all 0.2s ease;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        Check out the latest Version
+      </a>
+    </div>
+
+    <div style="display: flex; justify-content: center;">
+      <button class="btn" onclick="closeAboutModal()" style="min-width: 100px; justify-content: center; padding: 8px 16px;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// State Management
+const MAX_HISTORY = 9999;
+const state = {
+  viewX: 0,
+  viewY: 0,
+  zoom: 1,
+  isViewLocked: false,
+  selectedElements: [],
+  isDragging: false,
+  isRotating: false,
+  dragStartGlobal: { x: 0, y: 0 },
+  rotationCenter: null,
+  startRotAngle: 0,
+  historyStack: [],
+  historyIndex: -1,
+  draggedLayerIndex: null
+};
+
+const stage = document.getElementById('infinite-svg-stage');
+const viewport = document.getElementById('viewport');
+const transformGroup = document.getElementById('viewport-transform-group');
+const mainRoot = document.getElementById('main-content-root');
+const overlayRoot = document.getElementById('selection-overlay-root');
+const defsRoot = document.getElementById('svg-defs');
+
+// Reset to Blue Cube State
+function executeResetToBlueCube() {
+  defsRoot.innerHTML = `
+    <linearGradient id="cubeTopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <linearGradient id="cubeLeftGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="cubeRightGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1e40af" />
+    </linearGradient>
+  `;
+
+  mainRoot.innerHTML = `
+    <g id="blue-cube-group" transform="translate(0,0)">
+      <polygon id="cube-top" points="100,0 200,50 100,100 0,50" fill="url(#cubeTopGrad)" stroke="#93c5fd" stroke-width="2" />
+      <polygon id="cube-left" points="0,50 100,100 100,220 0,170" fill="url(#cubeLeftGrad)" stroke="#93c5fd" stroke-width="2" />
+      <polygon id="cube-right" points="100,100 200,50 200,170 100,220" fill="url(#cubeRightGrad)" stroke="#93c5fd" stroke-width="2" />
+    </g>
+  `;
+
+  state.selectedElements = [];
+  closeModal('reset-confirm-modal');
+  
+  refreshAll();
+  setTimeout(centerView, 10);
+  pushHistoryState();
+}
+
+function confirmResetToBlueCube() {
+  document.getElementById('reset-confirm-modal').style.display = 'flex';
+}
+
+// History Stack (Undo/Redo)
+function pushHistoryState() {
+  if (state.historyIndex < state.historyStack.length - 1) {
+    state.historyStack = state.historyStack.slice(0, state.historyIndex + 1);
+  }
+
+  const snapshot = {
+    mainHTML: mainRoot.innerHTML,
+    defsHTML: defsRoot.innerHTML
+  };
+
+  state.historyStack.push(snapshot);
+  if (state.historyStack.length > MAX_HISTORY) {
+    state.historyStack.shift();
+  } else {
+    state.historyIndex++;
+  }
+  updateUndoRedoUI();
+}
+
+function undo() {
+  if (state.historyIndex > 0) {
+    state.historyIndex--;
+    restoreHistoryState(state.historyStack[state.historyIndex]);
+  }
+}
+
+function redo() {
+  if (state.historyIndex < state.historyStack.length - 1) {
+    state.historyIndex++;
+    restoreHistoryState(state.historyStack[state.historyIndex]);
+  }
+}
+
+function restoreHistoryState(snapshot) {
+  mainRoot.innerHTML = snapshot.mainHTML;
+  defsRoot.innerHTML = snapshot.defsHTML;
+  state.selectedElements = [];
+  refreshAll();
+  updateUndoRedoUI();
+}
+
+function updateUndoRedoUI() {
+  document.getElementById('btn-undo').disabled = state.historyIndex <= 0;
+  document.getElementById('btn-redo').disabled = state.historyIndex >= state.historyStack.length - 1;
+}
+
+// Global Keyboard Shortcuts
+window.addEventListener('keydown', (e) => {
+  const isInputActive = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+  
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !isInputActive) {
+    e.preventDefault();
+    deleteSelectedElements();
+  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    if (e.shiftKey) redo(); else undo();
+  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    redo();
+  }
+});
+
+function deleteSelectedElements() {
+  if (state.selectedElements.length === 0) return;
+  state.selectedElements.forEach(el => el.remove());
+  state.selectedElements = [];
+  refreshAll();
+  pushHistoryState();
+}
+
+// Viewport Controls & Lock
+function toggleViewLock() {
+  state.isViewLocked = !state.isViewLocked;
+  const lockBtn = document.getElementById('lock-btn');
+  const lockLabel = document.getElementById('lock-label');
+  const lockIcon = document.getElementById('lock-icon');
+
+  if (state.isViewLocked) {
+    lockBtn.classList.add('locked');
+    lockLabel.innerText = 'View Locked';
+    lockIcon.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>`;
+    viewport.classList.add('locked');
+  } else {
+    lockBtn.classList.remove('locked');
+    lockLabel.innerText = 'Lock View';
+    lockIcon.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>`;
+    viewport.classList.remove('locked');
+  }
+}
+
+function updateViewportTransform() {
+  transformGroup.setAttribute('transform', `translate(${state.viewX}, ${state.viewY}) scale(${state.zoom})`);
+  document.getElementById('zoom-label').innerText = `${Math.round(state.zoom * 100)}%`;
+}
+
+function centerView() {
+  const rect = viewport.getBoundingClientRect();
+  const bbox = mainRoot.getBBox();
+
+  if (bbox.width === 0 || bbox.height === 0) {
+    state.viewX = rect.width / 2;
+    state.viewY = rect.height / 2;
+  } else {
+    state.zoom = 1;
+    state.viewX = (rect.width / 2) - (bbox.x + bbox.width / 2);
+    state.viewY = (rect.height / 2) - (bbox.y + bbox.height / 2);
+  }
+  updateViewportTransform();
+}
+
+viewport.addEventListener('wheel', (e) => {
+  if (e.shiftKey && !state.isViewLocked) {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    state.zoom = Math.min(Math.max(0.1, state.zoom * zoomFactor), 8);
+    updateViewportTransform();
+  }
+});
+
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+
+viewport.addEventListener('pointerdown', (e) => {
+  if (state.isViewLocked) return;
+  if (e.target === viewport || e.target === stage || e.target.tagName === 'svg') {
+    isPanning = true;
+    viewport.classList.add('panning');
+    panStart = { x: e.clientX - state.viewX, y: e.clientY - state.viewY };
+    deselectAll();
+  }
+});
+
+// Drag & Rotate Move Logic based on exact Parent Matrices
+window.addEventListener('pointermove', (e) => {
+  if (isPanning && !state.isViewLocked) {
+    state.viewX = e.clientX - panStart.x;
+    state.viewY = e.clientY - panStart.y;
+    updateViewportTransform();
+  } else if (state.isDragging && state.selectedElements.length > 0) {
+    const pt1 = stage.createSVGPoint();
+    pt1.x = state.dragStartGlobal.x;
+    pt1.y = state.dragStartGlobal.y;
+
+    const pt2 = stage.createSVGPoint();
+    pt2.x = e.clientX;
+    pt2.y = e.clientY;
+
+    state.selectedElements.forEach(el => {
+      if (el._initialMatrix) {
+        const parentCTM = el.parentElement.getScreenCTM();
+        if (parentCTM) {
+          const invParentCTM = parentCTM.inverse();
+          const localPt1 = pt1.matrixTransform(invParentCTM);
+          const localPt2 = pt2.matrixTransform(invParentCTM);
+          
+          const localDx = localPt2.x - localPt1.x;
+          const localDy = localPt2.y - localPt1.y;
+          
+          const tMatrix = stage.createSVGMatrix().translate(localDx, localDy);
+          const newMatrix = tMatrix.multiply(el._initialMatrix);
+          
+          const transform = stage.createSVGTransformFromMatrix(newMatrix);
+          el.transform.baseVal.initialize(transform);
+        }
+      }
+    });
+
+    renderSelectionOverlays();
+    updateTransformUI();
+  } else if (state.isRotating && state.selectedElements.length === 1) {
+    const el = state.selectedElements[0];
+    const currentAngle = Math.atan2(e.clientY - state.rotationCenter.y, e.clientX - state.rotationCenter.x) * (180 / Math.PI);
+    const deltaAngle = currentAngle - state.startRotAngle;
+
+    if (el._initialMatrix) {
+      const bbox = el.getBBox();
+      const localCx = bbox.x + bbox.width / 2;
+      const localCy = bbox.y + bbox.height / 2;
+
+      const tCenter = stage.createSVGMatrix().translate(localCx, localCy);
+      const rMatrix = stage.createSVGMatrix().rotate(deltaAngle);
+      const tCenterInv = stage.createSVGMatrix().translate(-localCx, -localCy);
+      
+      const localTransform = tCenter.multiply(rMatrix).multiply(tCenterInv);
+      const newMatrix = el._initialMatrix.multiply(localTransform);
+      
+      const transform = stage.createSVGTransformFromMatrix(newMatrix);
+      el.transform.baseVal.initialize(transform);
+    }
+
+    renderSelectionOverlays();
+    updateTransformUI();
+  }
+});
+
+window.addEventListener('pointerup', () => {
+  if (isPanning) {
+    isPanning = false;
+    viewport.classList.remove('panning');
+  }
+  if (state.isDragging || state.isRotating) {
+    state.isDragging = false;
+    state.isRotating = false;
+    pushHistoryState();
+  }
+});
+
+// Element Selection Setup
+function setupElementInteractions() {
+  const elements = mainRoot.querySelectorAll('*');
+  elements.forEach(el => {
+    if (el.tagName === 'g' && el.children.length > 0) return;
+    el.onpointerdown = null; 
+    el.classList.add('svg-element-target');
+
+    el.onpointerdown = (e) => {
+      e.stopPropagation();
+      
+      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        toggleSelect(el);
+      } else if (!state.selectedElements.includes(el)) {
+        selectSingle(el);
+      }
+
+      state.isDragging = true;
+      state.dragStartGlobal = { x: e.clientX, y: e.clientY };
+      
+      state.selectedElements.forEach(selEl => {
+        selEl._initialMatrix = selEl.transform.baseVal.consolidate()?.matrix || stage.createSVGMatrix();
+      });
+    };
+  });
+}
+
+function selectSingle(el) {
+  state.selectedElements = [el];
+  refreshAll();
+}
+
+function toggleSelect(el) {
+  const idx = state.selectedElements.indexOf(el);
+  if (idx > -1) {
+    state.selectedElements.splice(idx, 1);
+  } else {
+    state.selectedElements.push(el);
+  }
+  refreshAll();
+}
+
+function deselectAll() {
+  state.selectedElements = [];
+  refreshAll();
+}
+
+// Seamless Absolute Bounding Box Selection Overlays
+function renderSelectionOverlays() {
+  overlayRoot.innerHTML = '';
+  if (state.selectedElements.length === 0) return;
+
+  const overlayParentCTM = overlayRoot.getScreenCTM();
+  if (!overlayParentCTM) return;
+  const invParentCTM = overlayParentCTM.inverse();
+
+  state.selectedElements.forEach(el => {
+    const bbox = el.getBBox();
+    const cx = bbox.x + bbox.width / 2;
+    const cy = bbox.y + bbox.height / 2;
+
+    const elCTM = el.getScreenCTM();
+    if (!elCTM) return;
+    const relativeMatrix = invParentCTM.multiply(elCTM);
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute('transform', `matrix(${relativeMatrix.a}, ${relativeMatrix.b}, ${relativeMatrix.c}, ${relativeMatrix.d}, ${relativeMatrix.e}, ${relativeMatrix.f})`);
+
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute('x', bbox.x - 4);
+    rect.setAttribute('y', bbox.y - 4);
+    rect.setAttribute('width', bbox.width + 8);
+    rect.setAttribute('height', bbox.height + 8);
+    rect.setAttribute('class', 'selection-bbox');
+    rect.setAttribute('vector-effect', 'non-scaling-stroke');
+    g.appendChild(rect);
+
+    if (state.selectedElements.length === 1) {
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute('x1', cx);
+      line.setAttribute('y1', bbox.y - 4);
+      line.setAttribute('x2', cx);
+      line.setAttribute('y2', bbox.y - 25);
+      line.setAttribute('class', 'rotation-handle-line');
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      g.appendChild(line);
+
+      const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      handle.setAttribute('cx', cx);
+      handle.setAttribute('cy', bbox.y - 25);
+      handle.setAttribute('r', 5);
+      handle.setAttribute('class', 'rotation-handle-node');
+      
+      handle.onpointerdown = (e) => {
+        e.stopPropagation();
+        state.isRotating = true;
+        
+        const centerPt = stage.createSVGPoint();
+        centerPt.x = cx;
+        centerPt.y = cy;
+        state.rotationCenter = centerPt.matrixTransform(el.getScreenCTM());
+        state.startRotAngle = Math.atan2(e.clientY - state.rotationCenter.y, e.clientX - state.rotationCenter.x) * (180 / Math.PI);
+        el._initialMatrix = el.transform.baseVal.consolidate()?.matrix || stage.createSVGMatrix();
+      };
+
+      g.appendChild(handle);
+    }
+    overlayRoot.appendChild(g);
+  });
+}
+
+// Layer Depth Management
+function updateLayerList() {
+  const container = document.getElementById('layer-list-container');
+  container.innerHTML = '';
+  
+  const layers = getCleanLayerElements();
+
+  layers.forEach((el, index) => {
+    const item = document.createElement('div');
+    item.className = 'layer-item' + (state.selectedElements.includes(el) ? ' selected' : '');
+    item.draggable = true;
+    item.dataset.index = index;
+
+    const formattedName = getFormattedLayerName(el, index);
+
+    item.innerHTML = `
+      <span class="layer-drag-handle">≡</span>
+      <span class="layer-title">${formattedName}</span>
+      <button class="layer-remove-btn" title="Delete Layer" onclick="removeSingleLayer(event, ${index})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </button>
+    `;
+
+    item.onclick = (e) => {
+      e.stopPropagation();
+      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        toggleSelect(el);
+      } else {
+        selectSingle(el);
+      }
+    };
+
+    // Drag-and-Drop Handlers
+    item.ondragstart = (e) => {
+      state.draggedLayerIndex = index;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    };
+
+    item.ondragend = () => {
+      item.classList.remove('dragging');
+      state.draggedLayerIndex = null;
+    };
+
+    item.ondragover = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    };
+
+    item.ondrop = (e) => {
+      e.preventDefault();
+      const targetIndex = index;
+      if (state.draggedLayerIndex !== null && state.draggedLayerIndex !== targetIndex) {
+        reorderLayerDOM(state.draggedLayerIndex, targetIndex);
+      }
+    };
+
+    container.appendChild(item);
+  });
+}
+
+function getCleanLayerElements() {
+  const raw = Array.from(mainRoot.querySelectorAll('*')).filter(el => !(el.tagName === 'g' && el.children.length > 0));
+  return raw.reverse();
+}
+
+function getFormattedLayerName(el, index) {
+  if (el.id) {
+    return el.id.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+  return `${el.tagName.toUpperCase()} Layer ${index + 1}`;
+}
+
+function removeSingleLayer(e, index) {
+  e.stopPropagation();
+  const layers = getCleanLayerElements();
+  const target = layers[index];
+  if (target) {
+    const selIdx = state.selectedElements.indexOf(target);
+    if (selIdx > -1) state.selectedElements.splice(selIdx, 1);
+    target.remove();
+    refreshAll();
+    pushHistoryState();
+  }
+}
+
+function reorderLayerDOM(fromIndex, toIndex) {
+  const layers = getCleanLayerElements();
+  const sourceEl = layers[fromIndex];
+  const targetEl = layers[toIndex];
+
+  if (!sourceEl || !targetEl) return;
+
+  if (fromIndex < toIndex) {
+    targetEl.parentElement.insertBefore(sourceEl, targetEl);
+  } else {
+    targetEl.parentElement.insertBefore(sourceEl, targetEl.nextElementSibling);
+  }
+
+  refreshAll();
+  pushHistoryState();
+}
+
+function moveSelectedLayers(action) {
+  if (state.selectedElements.length === 0) return;
+
+  const elements = state.selectedElements;
+  elements.forEach(el => {
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    if (action === 'forward' && el.nextElementSibling) {
+      parent.insertBefore(el.nextElementSibling, el);
+    } else if (action === 'backward' && el.previousElementSibling) {
+      parent.insertBefore(el, el.previousElementSibling);
+    } else if (action === 'front') {
+      parent.appendChild(el);
+    } else if (action === 'back') {
+      parent.insertBefore(el, parent.firstElementChild);
+    }
+  });
+
+  refreshAll();
+  pushHistoryState();
+}
+
+// Import / File Handling
+function triggerFileInput() {
+  document.getElementById('hidden-file-input').click();
+}
+
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    parseAndLoadSVG(e.target.result);
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function parseAndLoadSVG(svgString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const newSvg = doc.querySelector('svg');
+
+  if (!newSvg) {
+    alert("Invalid SVG content.");
+    return;
+  }
+
+  const newDefs = newSvg.querySelector('defs');
+  if (newDefs) defsRoot.innerHTML = newDefs.innerHTML;
+
+  mainRoot.innerHTML = '';
+  Array.from(newSvg.childNodes).forEach(node => {
+    if (node.nodeName !== 'defs') {
+      mainRoot.appendChild(document.importNode(node, true));
+    }
+  });
+
+  state.selectedElements = [];
+  refreshAll();
+  setTimeout(centerView, 10);
+  pushHistoryState();
+}
+
+function openPasteModal() {
+  navigator.clipboard.readText().then(text => {
+    if (text) parseAndLoadSVG(text);
+  }).catch(() => {
+    document.getElementById('import-textarea').value = '';
+    document.getElementById('modal-heading').innerText = "Paste Clipboard Content";
+    document.getElementById('import-modal').style.display = 'flex';
+  });
+}
+
+function openAboutModal() {
+  document.getElementById('about-modal').style.display = 'flex';
+}
+
+function closeAboutModal() {
+  closeModal('about-modal');
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal || modal.style.display === 'none') return;
+  modal.classList.add('closing');
+  setTimeout(() => {
+    modal.style.display = 'none';
+    modal.classList.remove('closing');
+  }, 150);
+}
+
+function processImportModal() {
+  const val = document.getElementById('import-textarea').value;
+  if (val.trim()) parseAndLoadSVG(val);
+  closeModal('import-modal');
+}
+
+// Sidebar Tabs & Style Updates
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sidebar-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+function refreshAll() {
+  setupElementInteractions();
+  renderSelectionOverlays();
+  updateStyleUI();
+  updateLayerList();
+  updateTransformUI();
+  populateGradientOptions();
+}
+
+function updateStyleUI() {
+  const noSel = document.getElementById('style-no-selection');
+  const ctrl = document.getElementById('style-controls');
+
+  if (state.selectedElements.length === 0) {
+    noSel.style.display = 'block';
+    ctrl.style.display = 'none';
+    return;
+  }
+
+  noSel.style.display = 'none';
+  ctrl.style.display = 'block';
+
+  const el = state.selectedElements[0];
+  const fill = el.getAttribute('fill') || '#000000';
+  const stroke = el.getAttribute('stroke') || '#000000';
+  const strokeWidth = el.getAttribute('stroke-width') || '0';
+  const opacity = el.getAttribute('fill-opacity') || el.getAttribute('opacity') || '1';
+
+  if (fill.startsWith('url')) {
+    document.getElementById('ctrl-fill-type').value = 'gradient';
+    document.getElementById('row-solid-fill').style.display = 'none';
+    document.getElementById('row-grad-fill').style.display = 'flex';
+  } else if (fill === 'none') {
+    document.getElementById('ctrl-fill-type').value = 'none';
+    document.getElementById('row-solid-fill').style.display = 'none';
+    document.getElementById('row-grad-fill').style.display = 'none';
+  } else {
+    document.getElementById('ctrl-fill-type').value = 'color';
+    document.getElementById('row-solid-fill').style.display = 'flex';
+    document.getElementById('row-grad-fill').style.display = 'none';
+    document.getElementById('ctrl-fill-color').value = rgbToHex(fill);
+    document.getElementById('ctrl-fill-hex').value = fill;
+  }
+
+  document.getElementById('ctrl-stroke-color').value = rgbToHex(stroke);
+  document.getElementById('ctrl-stroke-width').value = parseFloat(strokeWidth);
+  document.getElementById('ctrl-fill-opacity').value = parseFloat(opacity);
+}
+
+function applyFillTypeChange() {
+  const type = document.getElementById('ctrl-fill-type').value;
+  if (type === 'color') {
+    applySolidColor();
+  } else if (type === 'gradient') {
+    applyGradientFill();
+  } else {
+    state.selectedElements.forEach(el => el.setAttribute('fill', 'none'));
+  }
+  updateStyleUI();
+  pushHistoryState();
+}
+
+function applySolidColor() {
+  const col = document.getElementById('ctrl-fill-color').value;
+  state.selectedElements.forEach(el => el.setAttribute('fill', col));
+  updateStyleUI();
+  pushHistoryState();
+}
+
+function syncFillHex(val) {
+  if (/^#[0-9A-F]{6}$/i.test(val)) {
+    state.selectedElements.forEach(el => el.setAttribute('fill', val));
+    document.getElementById('ctrl-fill-color').value = val;
+    pushHistoryState();
+  }
+}
+
+function applyStrokeStyle() {
+  const stroke = document.getElementById('ctrl-stroke-color').value;
+  const width = document.getElementById('ctrl-stroke-width').value;
+  state.selectedElements.forEach(el => {
+    el.setAttribute('stroke', stroke);
+    el.setAttribute('stroke-width', width);
+  });
+  pushHistoryState();
+}
+
+function applyOpacity() {
+  const op = document.getElementById('ctrl-fill-opacity').value;
+  state.selectedElements.forEach(el => el.setAttribute('fill-opacity', op));
+  pushHistoryState();
+}
+
+function populateGradientOptions() {
+  const sel = document.getElementById('ctrl-fill-gradient');
+  const defSel = document.getElementById('grad-def-selector');
+  sel.innerHTML = '';
+  defSel.innerHTML = '';
+
+  const grads = defsRoot.querySelectorAll('linearGradient, radialGradient');
+  grads.forEach(g => {
+    const opt = `<option value="${g.id}">${g.id}</option>`;
+    sel.innerHTML += opt;
+    defSel.innerHTML += opt;
+  });
+
+  if (grads.length > 0) loadGradDefEditor();
+}
+
+function applyGradientFill() {
+  const id = document.getElementById('ctrl-fill-gradient').value;
+  if (id) {
+    state.selectedElements.forEach(el => el.setAttribute('fill', `url(#${id})`));
+    pushHistoryState();
+  }
+}
+
+// Side Panel Transform Interactions
+function updateTransformUI() {
+  if (state.selectedElements.length === 1) {
+    const el = state.selectedElements[0];
+    const matrix = el.transform.baseVal.consolidate()?.matrix || stage.createSVGMatrix();
+    document.getElementById('ctrl-tx').value = Math.round(matrix.e);
+    document.getElementById('ctrl-ty').value = Math.round(matrix.f);
+    
+    let rot = Math.round(Math.atan2(matrix.b, matrix.a) * (180 / Math.PI));
+    document.getElementById('ctrl-rot').value = rot;
+    document.getElementById('rot-val').innerText = `${rot}°`;
+  }
+}
+
+function applyTransformInputs() {
+  if (state.selectedElements.length === 1) {
+    const el = state.selectedElements[0];
+    const newTx = parseFloat(document.getElementById('ctrl-tx').value) || 0;
+    const newTy = parseFloat(document.getElementById('ctrl-ty').value) || 0;
+    const newRot = parseInt(document.getElementById('ctrl-rot').value) || 0;
+    
+    const bbox = el.getBBox();
+    const cx = bbox.x + bbox.width / 2;
+    const cy = bbox.y + bbox.height / 2;
+    
+    // Applying exact transforms from the input overrides previous matrices securely
+    el.setAttribute('transform', `translate(${newTx}, ${newTy}) rotate(${newRot}, ${cx}, ${cy})`);
+    
+    renderSelectionOverlays();
+    pushHistoryState();
+  }
+}
+
+function loadGradDefEditor() {
+  const id = document.getElementById('grad-def-selector').value;
+  const grad = defsRoot.querySelector(`#${id}`);
+  const container = document.getElementById('stops-editor-container');
+  container.innerHTML = '';
+
+  if (!grad) return;
+
+  const stops = grad.querySelectorAll('stop');
+  stops.forEach((s, idx) => {
+    const row = document.createElement('div');
+    row.className = 'ctrl-row';
+    const col = rgbToHex(s.getAttribute('stop-color') || '#ffffff');
+    const off = parseInt(s.getAttribute('offset')) || 0;
+
+    row.innerHTML = `
+      <input type="color" value="${col}" onchange="updateGradStop('${id}', ${idx}, 'stop-color', this.value)">
+      <input type="number" min="0" max="100" value="${off}" style="width:50px;" oninput="updateGradStop('${id}', ${idx}, 'offset', this.value + '%')">%
+    `;
+    container.appendChild(row);
+  });
+}
+
+function updateGradStop(gradId, idx, attr, val) {
+  const grad = defsRoot.querySelector(`#${gradId}`);
+  if (grad) {
+    const stop = grad.querySelectorAll('stop')[idx];
+    if (stop) {
+      stop.setAttribute(attr, val);
+      pushHistoryState();
+    }
+  }
+}
+
+function addGradStop() {
+  const id = document.getElementById('grad-def-selector').value;
+  const grad = defsRoot.querySelector(`#${id}`);
+  if (grad) {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+    s.setAttribute('offset', '50%');
+    s.setAttribute('stop-color', '#ffffff');
+    grad.appendChild(s);
+    loadGradDefEditor();
+    pushHistoryState();
+  }
+}
+
+// Clean Export Utility
+function getCleanSVGString() {
+  const clone = mainRoot.cloneNode(true);
+  clone.querySelectorAll('.svg-element-target').forEach(el => {
+    el.classList.remove('svg-element-target');
+    delete el._initialMatrix;
+  });
+
+  const bbox = mainRoot.getBBox();
+  const vbWidth = Math.ceil(bbox.width) || 512;
+  const vbHeight = Math.ceil(bbox.height) || 512;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbWidth} ${vbHeight}">\n<defs>\n${defsRoot.innerHTML}\n</defs>\n${clone.innerHTML}\n</svg>`;
+}
+
+function downloadSVGFile() {
+  const svgContent = getCleanSVGString();
+  const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'ez-svg-export.svg';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function copySVGCodeToClipboard() {
+  const svgContent = getCleanSVGString();
+  navigator.clipboard.readText().then(() => {
+    alert("SVG Code copied to clipboard!");
+  }).catch(() => {
+    alert("Failed to copy automatically.");
+  });
+}
+
+function rgbToHex(rgb) {
+  if (!rgb || rgb.startsWith('#')) return rgb || '#000000';
+  const ctx = document.createElement('canvas').getContext('2d');
+  ctx.fillStyle = rgb;
+  return ctx.fillStyle;
+}
+
+// Initialize Application
+executeResetToBlueCube();
+</script>
+</body>
+</html>
